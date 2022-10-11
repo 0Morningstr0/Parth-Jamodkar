@@ -1,1 +1,49 @@
 
+Rule: Suspicious unique or uncommon user agents
+Rule intention: YamaBot communicates with the C2 server using HTTP requests. The following is the first HTTP POST request sent by YamaBot. It is also unique in that the UserAgent is Base64-encoded.
+Rule ref: https://blogs.jpcert.or.jp/en/2022/07/yamabot.html
+
+Query: 
+
+Sigma Rule : 
+
+title: Suspicious unique or uncommon user agents
+status: experimental
+description: Suspicious unique or uncommon user agents,YamaBot communicates with the C2 server using HTTP requests. 
+references:
+    - https://blogs.jpcert.or.jp/en/2022/07/yamabot.html
+author: Parth Jamodkar
+logsource:
+    category: proxy
+detection:
+    selection:
+      UserAgent:
+        # Badly scripted UA
+        - '='
+    condition: selection
+fields:
+    - ClientIP
+    - URL
+    - UserAgent
+falsepositives:
+    - Unknown
+level: high
+
+//--------------------------------------------------------------------------------------------
+
+Microsoft Sentinal Rule: 
+{
+    "displayName": "Suspicious User Agent by Parth Jamodkar",
+    "description": "Suspicious unique or uncommon user agents Author: Parth Jamodkar.,
+    "severity": "high",
+    "enabled": true,
+    "query": "Proxy | where (UserAgent =~ '=')",
+    "queryFrequency": "PT30M",
+    "queryPeriod": "PT30M",
+    "triggerOperator": "GreaterThan",
+    "triggerThreshold": 0,
+    "suppressionDuration": "PT2H30M",
+    "suppressionEnabled": true,
+    "tactics": [],
+    "techniques": []
+}
