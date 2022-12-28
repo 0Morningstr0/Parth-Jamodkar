@@ -1,0 +1,38 @@
+1) Cipher.exe Data Deletion (EVASION.TAMPERING)
+
+This trap looks for cipher.exe with "/w" which deletes a selected path after it. Can be used by attackers to hide their tracks.
+
+Examples
+CreatedProcessCommandLine: cipher /W:D\*.*
+CreatedProcessCommandLine: cipher d:*.*/W
+CreatedProcessCommandLine: cipher /W C:\ProgramData\Microsoft\Windows Defender\Scans\History\Service
+
+Trap Logic
+CreateProcessEvents 
+| where CreatedProcessName =~ "cipher.exe"
+// Looking for /w flag for deleting
+// E.g. CreatedProcessCommandLine: cipher  /W:D\*.*
+// E.g. CreatedProcessCommandLine: cipher  d:*.*/W
+// E.g. CreatedProcessCommandLine: cipher  /W C:\ProgramData\Microsoft\Windows Defender\Scans\History\Service
+//
+| where CreatedProcessCommandLine has "/w"
+//
+| summarize CommandCount = dcount(CreatedProcessCommandLine), make_set(CreatedProcessCommandLine), make_set(Process_CommandLine), EventReferences = tostring(make_set(strcat("CreateProcessEvents: ", ReportGuid))) by MachineId, OrgId,  bin(ReportTime, 30m)
+// Looking for multiple drives in a short timeframe
+| where CommandCount > 1
+
+
+----------------
+2) RESEARCH - Ryuk Staged Exfiltration
+
+This trap searches for a specific, high-confidence command used by the Ryuk actors in order to exfiltrate data. The attackers exfil data to the PerfLogs directory, using the filename "result.zip" which gets PII'd to FilePII_37a5301a88da334dc5afc5b63979daa0f3f45e68.zip. If zips become unscrubbed, this trap may need editing.
+
+Example: "7z.exe" a -tzip .\FilePII_37a5301a88da334dc5afc5b63979daa0f3f45e68.zip -mx=9 -aoa .\result\*
+
+Investigative Next Steps: Search for any and all activity around the PerfLogs directory,  This trap is a sign of hands-on-keyboard activity and should be escalated as a it's pre-ransom behavior.
+
+CreateProcessEvents 
+| where CreatedProcessVersionInfoOriginalFileName == "7z.exe"// Exfiltration to result.zip
+| where CreatedProcessCommandLine has @"a -tzip .\FilePII_37a5301a88da334dc5afc5b63979daa0f3f45e68.zip -mx=9 -aoa .\result\*"// CreateProcessEvents SingleEvent| extend EventType="CreateProcessEvents"
+| project ReportTime, ReportArrivalTimeUtc, EventType, ReportGuid, OrgId, MachineId, IsTestOrg, InitiatingProcessParentProcessName, InitiatingProcessName, Process_CommandLine, CreatedProcessName, CreatedProcessCommandLine
+
